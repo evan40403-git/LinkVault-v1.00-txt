@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkVault</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <style>
+        .custom-bg {
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(150, 150, 150, 0.3);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body id="pageBody" class="h-screen overflow-y-auto font-sans selection:bg-indigo-500 selection:text-white relative flex flex-col transition-colors duration-300">
+
+    <!-- Background Layer with Dynamic Image & Overlay -->
+    <div id="bgLayer" class="fixed inset-0 custom-bg transition-all duration-300 -z-20"></div>
+    <div id="bgOverlay" class="fixed inset-0 backdrop-blur-sm -z-10 transition-all duration-300"></div>
+
+    <!-- Main Container -->
+    <div class="max-w-4xl w-full mx-auto p-4 sm:p-6 flex-1 flex flex-col min-h-full">
+
+        <!-- Header -->
+        <header class="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 border-b border-current/10 mb-6 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 text-white font-bold text-xl">
+                    <i class="fa-solid fa-vault"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">LinkVault</h1>
+                    <p class="text-xs opacity-70">Secure Links & Scripts Dashboard</p>
+                </div>
+            </div>
+
+            <!-- Mode Switcher Bar & Settings Toggle -->
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <div class="bg-current/5 p-1 rounded-xl border border-current/10 flex items-center gap-1">
+                    <button onclick="setMode('links')" id="modeLinksBtn" class="px-4 py-1.5 rounded-lg text-xs font-medium transition-all bg-indigo-600 text-white shadow">
+                        Links
+                    </button>
+                    <button onclick="setMode('text')" id="modeTextBtn" class="px-4 py-1.5 rounded-lg text-xs font-medium transition-all opacity-70 hover:opacity-100">
+                        Text & Scripts
+                    </button>
+                </div>
+                <button onclick="toggleSettings()" class="p-2.5 rounded-xl bg-current/5 hover:bg-current/10 border border-current/10 transition-all" title="Settings">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Action Bar (Add Item) -->
+        <div class="bg-current/5 border border-current/10 rounded-2xl p-4 sm:p-5 backdrop-blur-md mb-6 shadow-xl shrink-0">
+            <h2 id="formTitle" class="text-sm font-semibold mb-3 flex items-center gap-2 opacity-90">
+                <i class="fa-solid fa-plus text-indigo-400"></i> Add New Link
+            </h2>
+            <form id="vaultForm" onsubmit="handleFormSubmit(event)" class="space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input type="text" id="itemTitle" placeholder="Title (e.g. GitHub Repository)" required
+                        class="bg-current/5 border border-current/10 rounded-xl px-4 py-2.5 text-sm placeholder-current/40 focus:outline-none focus:border-indigo-500 transition-all">
+                    
+                    <div id="primaryInputContainer">
+                        <input type="url" id="itemValue" placeholder="https://example.com" required
+                            class="w-full bg-current/5 border border-current/10 rounded-xl px-4 py-2.5 text-sm placeholder-current/40 focus:outline-none focus:border-indigo-500 transition-all">
+                    </div>
+                </div>
+
+                <!-- Secondary Notes Bar with dynamic 50% / 0% opacity placeholder handling -->
+                <div>
+                    <input type="text" id="itemNote" placeholder="ex. Python, Roast, Important text"
+                        class="w-full bg-current/5 border border-current/10 rounded-xl px-4 py-2.5 text-sm placeholder-current/50 focus:placeholder-current/90 focus:outline-none focus:border-indigo-500 transition-all">
+                </div>
+
+                <div class="flex justify-end pt-1">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2 rounded-xl text-sm transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2">
+                        <i class="fa-solid fa-check"></i> Save to Vault
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div class="flex items-center gap-3 mb-6 shrink-0">
+            <div class="relative flex-1">
+                <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-50"></i>
+                <input type="text" id="searchInput" oninput="renderItems()" placeholder="Search vault items..."
+                    class="w-full bg-current/5 border border-current/10 rounded-xl pl-11 pr-4 py-2.5 text-sm placeholder-current/40 focus:outline-none focus:border-indigo-500 transition-all">
+            </div>
+        </div>
+
+        <!-- Vault Items Grid / List -->
+        <div id="vaultGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-12">
+            <!-- Dynamically populated items -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden flex-col items-center justify-center py-16 text-center opacity-60 my-auto">
+            <i class="fa-solid fa-box-open text-4xl mb-3 opacity-40"></i>
+            <p class="text-sm">Your vault is empty in this mode.</p>
+        </div>
+
+    </div>
+
+    <!-- Settings Modal Drawer -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 text-slate-100 border border-white/10 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-white/10 pb-4">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-gear text-indigo-400"></i> Settings & Account
+                </h3>
+                <button onclick="toggleSettings()" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Theme Toggle Section -->
+            <div class="space-y-2">
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Appearance</label>
+                <div class="flex items-center justify-between bg-black/40 border border-white/10 rounded-xl px-4 py-3">
+                    <span class="text-xs text-slate-300 font-medium">Theme Mode</span>
+                    <button onclick="toggleTheme()" id="themeToggleBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-sun"></i> Light Mode
+                    </button>
+                </div>
+            </div>
+
+            <!-- Account Key Section (Mullvad style 18 character uneditable code) -->
+            <div class="space-y-2 pt-2 border-t border-white/10">
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Account Key (Data & Theme Sync)</label>
+                <div class="flex gap-2">
+                    <input type="text" id="accountKeyInput" readonly
+                        class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-indigo-300 select-all focus:outline-none">
+                    <button onclick="copyAccountKey()" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs font-medium transition-all shrink-0">
+                        <i class="fa-solid fa-copy"></i> Copy
+                    </button>
+                </div>
+                <p class="text-[11px] text-slate-500">Use this exact key to restore your links, scripts, background, and theme settings across devices.</p>
+            </div>
+
+            <!-- Restore Account Key Input -->
+            <div class="space-y-2 pt-2 border-t border-white/10">
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Restore Account</label>
+                <div class="flex gap-2">
+                    <input type="text" id="restoreKeyInput" placeholder="xxxx-xxxx-xxxx-xxxx-xx"
+                        class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500">
+                    <button onclick="restoreAccount()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-medium transition-all shrink-0">
+                        Restore
+                    </button>
+                </div>
+            </div>
+
+            <!-- Custom Background Uploader -->
+            <div class="space-y-2 pt-2 border-t border-white/10">
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Custom Background Image</label>
+                <div class="flex items-center gap-3">
+                    <label class="cursor-pointer bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl text-xs font-medium transition-all border border-white/10 flex items-center gap-2">
+                        <i class="fa-solid fa-image"></i> Upload File
+                        <input type="file" accept="image/*" onchange="handleImageUpload(event)" class="hidden">
+                    </label>
+                    <button onclick="clearBackground()" class="text-xs text-rose-400 hover:text-rose-300 transition-all">Remove</button>
+                </div>
+            </div>
+
+            <!-- Background Overlay Opacity Slider -->
+            <div class="space-y-2 pt-2 border-t border-white/10">
+                <div class="flex justify-between text-xs">
+                    <span class="font-semibold text-slate-400 uppercase tracking-wider">Background Dimness</span>
+                    <span id="opacityVal" class="text-indigo-400 font-mono">20%</span>
+                </div>
+                <input type="range" id="opacitySlider" min="0" max="95" value="20" oninput="updateOpacity(this.value)"
+                    class="w-full accent-indigo-500 cursor-pointer">
+            </div>
+
+            <div class="pt-4 border-t border-white/10 flex justify-end">
+                <button onclick="toggleSettings()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-medium transition-all">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        let currentMode = 'links'; // 'links' or 'text'
+        let vaultData = {
+            links: [],
+            texts: [],
+            settings: {
+                theme: 'light', // Default to light mode state
+                bgImage: '',
+                bgOpacity: 0.2,
+                accountKey: ''
+            }
+        };
+
+        // Initialize or load vault key & data
+        function initVault() {
+            let storedKey = localStorage.getItem('linkvault_active_key');
+            if (!storedKey) {
+                storedKey = generateAccountKey();
+                localStorage.setItem('linkvault_active_key', storedKey);
+            }
+            loadVaultData(storedKey);
+        }
+
+        function generateAccountKey() {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            const segments = [4, 4, 4, 4, 2];
+            return segments.map(len => {
+                let seg = '';
+                for (let i = 0; i < len; i++) {
+                    seg += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return seg;
+            }).join('-');
+        }
+
+        function getStorageKey(accountKey) {
+            return `linkvault_data_${accountKey}`;
+        }
+
+        function loadVaultData(accountKey) {
+            const raw = localStorage.getItem(getStorageKey(accountKey));
+            if (raw) {
+                try {
+                    vaultData = JSON.parse(raw);
+                } catch (e) {
+                    console.error('Failed to parse vault data', e);
+                }
+            } else {
+                // Default starter items for new account
+                vaultData = {
+                    links: [
+                        { id: 1, title: 'GitHub', value: 'https://github.com', note: 'Development' },
+                        { id: 2, title: 'Google', value: 'https://google.com', note: 'Search Engine' }
+                    ],
+                    texts: [
+                        { id: 1, title: 'Python Snippet', value: 'print("Hello from LinkVault!")', note: 'ex. Python, Roast, Important text' }
+                    ],
+                    settings: {
+                        theme: 'light',
+                        bgImage: '',
+                        bgOpacity: 0.2,
+                        accountKey: accountKey
+                    }
+                };
+                saveVaultData();
+            }
+
+            if (!vaultData.settings.theme) {
+                vaultData.settings.theme = 'light';
+            }
+
+            vaultData.settings.accountKey = accountKey;
+            document.getElementById('accountKeyInput').value = accountKey;
+            applySettings();
+            renderItems();
+        }
+
+        function saveVaultData() {
+            const key = vaultData.settings.accountKey;
+            localStorage.setItem(getStorageKey(key), JSON.stringify(vaultData));
+        }
+
+        // Mode Switching ('links' vs 'text')
+        function setMode(mode) {
+            currentMode = mode;
+            const linksBtn = document.getElementById('modeLinksBtn');
+            const textBtn = document.getElementById('modeTextBtn');
+            const formTitle = document.getElementById('formTitle');
+            const primaryContainer = document.getElementById('primaryInputContainer');
+
+            if (mode === 'links') {
+                linksBtn.className = "px-4 py-1.5 rounded-lg text-xs font-medium transition-all bg-indigo-600 text-white shadow";
+                textBtn.className = "px-4 py-1.5 rounded-lg text-xs font-medium transition-all opacity-70 hover:opacity-100";
+                formTitle.innerHTML = '<i class="fa-solid fa-plus text-indigo-400"></i> Add New Link';
+                primaryContainer.innerHTML = `<input type="url" id="itemValue" placeholder="https://example.com" required class="w-full bg-current/5 border border-current/10 rounded-xl px-4 py-2.5 text-sm placeholder-current/40 focus:outline-none focus:border-indigo-500 transition-all">`;
+            } else {
+                textBtn.className = "px-4 py-1.5 rounded-lg text-xs font-medium transition-all bg-indigo-600 text-white shadow";
+                linksBtn.className = "px-4 py-1.5 rounded-lg text-xs font-medium transition-all opacity-70 hover:opacity-100";
+                formTitle.innerHTML = '<i class="fa-solid fa-code text-indigo-400"></i> Add Text or Script';
+                primaryContainer.innerHTML = `<textarea id="itemValue" placeholder="Paste your text or script here..." rows="2" required class="w-full bg-current/5 border border-current/10 rounded-xl px-4 py-2.5 text-sm placeholder-current/40 focus:outline-none focus:border-indigo-500 transition-all"></textarea>`;
+            }
+            renderItems();
+        }
+
+        // Form Submission
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const title = document.getElementById('itemTitle').value.trim();
+            const value = document.getElementById('itemValue').value.trim();
+            const note = document.getElementById('itemNote').value.trim();
+
+            const newItem = {
+                id: Date.now(),
+                title,
+                value,
+                note
+            };
+
+            if (currentMode === 'links') {
+                vaultData.links.unshift(newItem);
+            } else {
+                vaultData.texts.unshift(newItem);
+            }
+
+            saveVaultData();
+            document.getElementById('vaultForm').reset();
+            renderItems();
+        }
+
+        // Render Vault Items
+        function renderItems() {
+            const grid = document.getElementById('vaultGrid');
+            const emptyState = document.getElementById('emptyState');
+            const searchVal = document.getElementById('searchInput').value.toLowerCase();
+
+            const items = currentMode === 'links' ? vaultData.links : vaultData.texts;
+            const filtered = items.filter(item => 
+                item.title.toLowerCase().includes(searchVal) || 
+                item.value.toLowerCase().includes(searchVal) || 
+                (item.note && item.note.toLowerCase().includes(searchVal))
+            );
+
+            grid.innerHTML = '';
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                return;
+            }
+
+            emptyState.classList.remove('flex');
+            emptyState.classList.add('hidden');
+
+            filtered.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-current/5 border border-current/10 rounded-2xl p-4 backdrop-blur-md flex flex-col justify-between gap-3 hover:border-indigo-500/50 transition-all group";
+                
+                let contentHTML = '';
+                if (currentMode === 'links') {
+                    contentHTML = `
+                        <a href="${item.value}" target="_blank" class="text-sm text-indigo-400 hover:underline truncate block flex items-center gap-2">
+                            <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-70"></i> ${escapeHTML(item.value)}
+                        </a>
+                    `;
+                } else {
+                    contentHTML = `
+                        <div class="bg-black/20 border border-current/5 rounded-xl p-3 font-mono text-xs max-h-28 overflow-y-auto whitespace-pre-wrap select-all">
+                            ${escapeHTML(item.value)}
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between gap-2 mb-1">
+                            <h3 class="font-semibold text-sm truncate">${escapeHTML(item.title)}</h3>
+                            <button onclick="deleteItem(${item.id})" class="opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-all p-1">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                        </div>
+                        ${contentHTML}
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-current/5 text-xs">
+                        <span class="opacity-70 truncate max-w-[200px]">${item.note ? escapeHTML(item.note) : ''}</span>
+                        ${currentMode === 'text' ? `
+                            <button onclick="copyText(this, \`${escapeJsString(item.value)}\`)" class="bg-current/10 hover:bg-current/20 px-3 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 shrink-0">
+                                <i class="fa-solid fa-copy"></i> Copy
+                            </button>
+                        ` : `
+                            <a href="${item.value}" target="_blank" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 px-3 py-1 rounded-lg text-xs font-medium transition-all">
+                                Open
+                            </a>
+                        `}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function deleteItem(id) {
+            if (currentMode === 'links') {
+                vaultData.links = vaultData.links.filter(i => i.id !== id);
+            } else {
+                vaultData.texts = vaultData.texts.filter(i => i.id !== id);
+            }
+            saveVaultData();
+            renderItems();
+        }
+
+        function copyText(btn, text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = `<i class="fa-solid fa-check text-emerald-400"></i> Copied`;
+                btn.classList.add('bg-emerald-500/20', 'text-emerald-300');
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('bg-emerald-500/20', 'text-emerald-300');
+                }, 1500);
+            });
+        }
+
+        function toggleTheme() {
+            vaultData.settings.theme = vaultData.settings.theme === 'light' ? 'dark' : 'light';
+            saveVaultData();
+            applySettings();
+        }
+
+        function toggleSettings() {
+            const modal = document.getElementById('settingsModal');
+            modal.classList.toggle('hidden');
+        }
+
+        function copyAccountKey() {
+            const input = document.getElementById('accountKeyInput');
+            navigator.clipboard.writeText(input.value);
+            event.target.innerHTML = `<i class="fa-solid fa-check"></i> Copied`;
+            setTimeout(() => {
+                event.target.innerHTML = `<i class="fa-solid fa-copy"></i> Copy`;
+            }, 1500);
+        }
+
+        function restoreAccount() {
+            const keyInput = document.getElementById('restoreKeyInput').value.trim();
+            if (!keyInput) return alert('Please enter a valid account key.');
+            
+            localStorage.setItem('linkvault_active_key', keyInput);
+            loadVaultData(keyInput);
+            toggleSettings();
+            document.getElementById('restoreKeyInput').value = '';
+            alert('Account successfully restored!');
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                vaultData.settings.bgImage = event.target.result;
+                saveVaultData();
+                applySettings();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearBackground() {
+            vaultData.settings.bgImage = '';
+            saveVaultData();
+            applySettings();
+        }
+
+        function updateOpacity(val) {
+            const opacity = val / 100;
+            vaultData.settings.bgOpacity = opacity;
+            document.getElementById('opacityVal').innerText = val + '%';
+            applyOverlayColor();
+            saveVaultData();
+        }
+
+        function applyOverlayColor() {
+            const overlay = document.getElementById('bgOverlay');
+            const opacity = vaultData.settings.bgOpacity !== undefined ? vaultData.settings.bgOpacity : 0.2;
+            const isDark = vaultData.settings.theme === 'dark';
+            
+            if (isDark) {
+                overlay.style.backgroundColor = `rgba(10, 15, 30, ${opacity})`;
+            } else {
+                overlay.style.backgroundColor = `rgba(245, 247, 250, ${opacity})`;
+            }
+        }
+
+        function applySettings() {
+            const pageBody = document.getElementById('pageBody');
+            const bgLayer = document.getElementById('bgLayer');
+            const slider = document.getElementById('opacitySlider');
+            const opacityVal = document.getElementById('opacityVal');
+            const themeBtn = document.getElementById('themeToggleBtn');
+
+            const theme = vaultData.settings.theme || 'light';
+
+            if (theme === 'dark') {
+                pageBody.className = "h-screen overflow-y-auto font-sans selection:bg-indigo-500 selection:text-white relative flex flex-col transition-colors duration-300 bg-slate-950 text-slate-100 dark";
+                themeBtn.innerHTML = `<i class="fa-solid fa-moon"></i> Dark Mode`;
+            } else {
+                pageBody.className = "h-screen overflow-y-auto font-sans selection:bg-indigo-500 selection:text-white relative flex flex-col transition-colors duration-300 bg-slate-100 text-slate-900";
+                themeBtn.innerHTML = `<i class="fa-solid fa-sun"></i> Light Mode`;
+            }
+
+            if (vaultData.settings.bgImage) {
+                bgLayer.style.backgroundImage = `url('${vaultData.settings.bgImage}')`;
+            } else {
+                bgLayer.style.backgroundImage = 'none';
+            }
+
+            const opacity = vaultData.settings.bgOpacity !== undefined ? vaultData.settings.bgOpacity : 0.2;
+            slider.value = Math.round(opacity * 100);
+            opacityVal.innerText = Math.round(opacity * 100) + '%';
+            applyOverlayColor();
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        function escapeJsString(str) {
+            return str.replace(/['"\\]/g, '\\$&');
+        }
+
+        window.onload = initVault;
+    </script>
+</body>
+</html>
