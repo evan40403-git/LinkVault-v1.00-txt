@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkVault</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .custom-bg {
+            background-size: cover;
+            background-position: center;
+        }
+    </style>
+</head>
+<body id="pageBody" class="h-screen overflow-y-auto font-sans bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white relative flex flex-col transition-colors duration-300">
+
+    <!-- Background Layers -->
+    <div id="bgLayer" class="fixed inset-0 custom-bg transition-all duration-300 -z-20 hidden"></div>
+    <div id="bgTintLayer" class="fixed inset-0 transition-all duration-300 -z-15 pointer-events-none hidden"></div>
+    <div id="bgOverlay" class="fixed inset-0 backdrop-blur-xs -z-10 transition-all duration-300"></div>
+
+    <!-- Main Container -->
+    <div class="max-w-4xl w-full mx-auto p-4 sm:p-6 flex-1 flex flex-col min-h-full">
+
+        <!-- Header -->
+        <header class="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 border-b border-current/10 mb-6 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 text-white font-bold text-xl">
+                    <i class="fa-solid fa-vault"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">LinkVault</h1>
+                    <p class="text-xs opacity-70">Secure Links & Scripts Dashboard</p>
+                </div>
+            </div>
+
+            <!-- Mode Switcher Bar & Settings Toggle -->
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <div class="bg-current/5 p-1 rounded-xl border border-current/10 flex items-center gap-1">
+                    <button onclick="setMode('links')" id="modeLinksBtn" class="px-4 py-1.5 rounded-lg text-xs font-medium transition-all bg-indigo-600 text-white shadow">
+                        Links
+                    </button>
+                    <button onclick="setMode('text')" id="modeTextBtn" class="px-4 py-1.5 rounded-lg text-xs font-medium transition-all opacity-70 hover:opacity-100">
+                        Text & Scripts
+                    </button>
+                </div>
+                <button onclick="toggleSettings()" class="p-2.5 rounded-xl bg-current/5 hover:bg-current/10 border border-current/10 transition-all" title="Settings">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Action Bar (Add Item) -->
+        <div class="bg-current/5 border border-current/10 rounded-2xl p-4 sm:p-5 backdrop-blur-md mb-6 shadow-xl shrink-0">
+            <h2 id="formTitle" class="text-sm font-semibold mb-3 flex items-center gap-2 opacity-90">
+                <i class="fa-solid fa-plus text-indigo-400"></i> Add New Link
+            </h2>
+            <form id="vaultForm" onsubmit="handleFormSubmit(event)" class="space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input type="text" id="itemTitle" placeholder="Title (e.g. GitHub Repository)" required
+                        class="bg-current/5 border border-current/10 rounded-xl px-4 py-2.5 text-sm placeholder-current/40 focus:outline-none focus:border-indigo-500 transition-all">
+                    
+                    <div id="primaryInputContainer">
+                        <input type="url" id="itemValue" placeholder="https://example.com" required
+                            class="w-full bg-current/5 border border-current/10 rounded-xl px-4 py-2.5 text-sm placeholder-current/40 focus:outline-none focus:border-indigo-500 transition-all">
+                    </div>
+                </div>
+
+                <!-- Secondary Notes Bar -->
+                <div>
+                    <input type="text" id="itemNote" placeholder="ex. Python, Roast, Important text"
+                        class="w-full bg-current/5 border border-current/10 rounded-xl px-4 py-2.5 text-sm placeholder-current/50 focus:placeholder-current/90 focus:outline-none focus:border-indigo-500 transition-all">
+                </div>
+
+                <div class="flex justify-end pt-1">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2 rounded-xl text-sm transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2">
+                        <i class="fa-solid fa-check"></i> Save to Vault
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div class="flex items-center gap-3 mb-6 shrink-0">
+            <div class="relative flex-1">
+                <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-50"></i>
+                <input type="text" id="searchInput" oninput="renderItems()" placeholder="Search vault items..."
+                    class="w-full bg-current/5 border border-current/10 rounded-xl pl-11 pr-4 py-2.5 text-sm placeholder-current/40 focus:outline-none focus:border-indigo-500 transition-all">
+            </div>
+        </div>
+
+        <!-- Vault Items Grid / List -->
+        <div id="vaultGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-12"></div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden flex-col items-center justify-center py-16 text-center opacity-60 my-auto">
+            <i class="fa-solid fa-box-open text-4xl mb-3 opacity-40"></i>
+            <p class="text-sm">Your vault is empty in this mode.</p>
+        </div>
+
+    </div>
+
+    <!-- Settings Modal Drawer -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 text-slate-100 border border-white/10 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 relative max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-white/10 pb-4">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-gear text-indigo-400"></i> Settings & Appearance
+                </h3>
+                <button onclick="toggleSettings()" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Theme Mode Toggle -->
+            <div class="space-y-2">
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">General</label>
+                <div class="flex items-center justify-between bg-black/40 border border-white/10 rounded-xl px-4 py-3">
+                    <span class="text-xs text-slate-300 font-medium">Theme Mode</span>
+                    <button onclick="toggleTheme()" id="themeToggleBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-sun"></i> Light Mode
+                    </button>
+                </div>
+            </div>
+
+            <!-- Plain Background Options Bar -->
+            <div class="space-y-3 pt-3 border-t border-white/10">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-semibold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-palette"></i> Plain Background Options
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                        <input type="checkbox" id="enablePlainBg" onchange="togglePlainBgFeature(this.checked)" class="accent-indigo-500 w-4 h-4 cursor-pointer">
+                        Enable
+                    </label>
+                </div>
+                <div id="plainBgControls" class="bg-black/30 border border-white/10 rounded-2xl p-3.5 space-y-3 opacity-50 pointer-events-none transition-all">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-300">Background RGB Color</span>
+                        <input type="color" id="plainBgColorPicker" value="#090d16" onchange="updatePlainBgColor(this.value)"
+                            class="w-9 h-9 rounded-lg bg-transparent cursor-pointer border border-white/20">
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-300">Background Opacity</span>
+                            <span id="plainOpacityVal" class="text-indigo-400 font-mono">100%</span>
+                        </div>
+                        <input type="range" id="plainOpacitySlider" min="0" max="100" value="100" oninput="updatePlainOpacity(this.value)"
+                            class="w-full accent-indigo-500 cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Background Image Options Bar -->
+            <div class="space-y-3 pt-3 border-t border-white/10">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-semibold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-image"></i> Background Image Options
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                        <input type="checkbox" id="enableImageBg" onchange="toggleImageBgFeature(this.checked)" class="accent-indigo-500 w-4 h-4 cursor-pointer">
+                        Enable
+                    </label>
+                </div>
+                <div id="imageBgControls" class="bg-black/30 border border-white/10 rounded-2xl p-3.5 space-y-3 opacity-50 pointer-events-none transition-all">
+                    <div class="flex items-center gap-2">
+                        <label class="w-full cursor-pointer bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs font-medium transition-all text-center border border-white/10">
+                            <i class="fa-solid fa-upload mr-1"></i> Upload Image
+                            <input type="file" accept="image/*" onchange="handleImageUpload(event)" class="hidden">
+                        </label>
+                        <button onclick="openDrawingModal()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-medium transition-all text-center">
+                            <i class="fa-solid fa-paintbrush mr-1"></i> Draw Background
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-xs text-slate-300">Image Tint RGB Color</span>
+                        <input type="color" id="imgTintPicker" value="#000000" onchange="updateImageTint(this.value)"
+                            class="w-9 h-9 rounded-lg bg-transparent cursor-pointer border border-white/20">
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-300">Image Opacity</span>
+                            <span id="imgOpacityVal" class="text-indigo-400 font-mono">100%</span>
+                        </div>
+                        <input type="range" id="imgOpacitySlider" min="0" max="100" value="100" oninput="updateImageOpacity(this.value)"
+                            class="w-full accent-indigo-500 cursor-pointer">
+                    </div>
+                    <div class="flex justify-between pt-1">
+                        <button onclick="clearBackground()" class="text-xs text-rose-400 hover:text-rose-300 transition-all">Remove Image</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Permanent JSON File Backup -->
+            <div class="space-y-2 pt-3 border-t border-white/10">
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Permanent Backup & Export</label>
+                <div class="flex items-center gap-2">
+                    <button onclick="exportVaultBackup()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-medium transition-all">
+                        <i class="fa-solid fa-download mr-1"></i> Download JSON
+                    </button>
+                    <label class="w-full cursor-pointer bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs font-medium transition-all text-center border border-white/10">
+                        <i class="fa-solid fa-upload mr-1"></i> Restore JSON
+                        <input type="file" accept=".json" onchange="importVaultBackup(event)" class="hidden">
+                    </label>
+                </div>
+            </div>
+
+            <div class="pt-2 border-t border-white/10 flex justify-end">
+                <button onclick="toggleSettings()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-medium transition-all">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Draw Background Modal -->
+    <div id="drawingModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-60 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-white/10 rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-2xl flex flex-col items-center">
+            <div class="flex items-center justify-between w-full border-b border-white/10 pb-3">
+                <h3 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-paintbrush text-indigo-400"></i> Draw Your Background</h3>
+                <button onclick="closeDrawingModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="relative border border-white/20 rounded-2xl overflow-hidden bg-black cursor-crosshair">
+                <canvas id="bgCanvas" width="480" height="300" class="block touch-none"></canvas>
+            </div>
+            <div class="flex items-center justify-between w-full gap-3">
+                <div class="flex items-center gap-2">
+                    <input type="color" id="drawColor" value="#6366f1" class="w-8 h-8 rounded bg-transparent cursor-pointer border border-white/20">
+                    <input type="range" id="drawSize" min="2" max="40" value="8" class="w-24 accent-indigo-500 cursor-pointer">
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="clearCanvas()" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs font-medium transition-all">Clear</button>
+                    <button onclick="saveCanvasAsBackground()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-medium transition-all">Use as Background</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Connection -->
+    <script src="script.js"></script>
+</body>
+</html>
